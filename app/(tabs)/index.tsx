@@ -1,98 +1,203 @@
-import { Image } from 'expo-image';
-import { Platform, StyleSheet } from 'react-native';
+import { deleteNote, getNotes, initDatabase, Note } from "@/database";
+import Ionicons from "@expo/vector-icons/Ionicons";
+import { useNavigation, useRouter } from "expo-router";
+import { useCallback, useEffect, useState } from "react";
+import {
+  Pressable,
+  RefreshControl,
+  ScrollView,
+  Text,
+  View,
+} from "react-native";
 
-import { HelloWave } from '@/components/hello-wave';
-import ParallaxScrollView from '@/components/parallax-scroll-view';
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { Link } from 'expo-router';
+export default function Index() {
+  const [refreshing, setRefreshing] = useState(false);
+  const [notes, setNotes] = useState<Note[]>([]);
+  const [selectedNotes, setSelectedNotes] = useState<number[]>([]);
+  const router = useRouter();
+  const navigation = useNavigation();
+  const stackNavigation =
+    (navigation as any).getParent?.()?.getParent?.() ??
+    (navigation as any).getParent?.() ??
+    navigation;
 
-export default function HomeScreen() {
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    setSelectedNotes([]);
+    loadNotes();
+    setRefreshing(false);
+  }, []);
+
+  useEffect(() => {
+    // 1. Create table on startup
+    initDatabase();
+    // 2. Load any saved notes
+    loadNotes();
+  }, []);
+
+  useEffect(() => {
+    stackNavigation.setOptions({
+      headerTitle:
+        selectedNotes.length > 0
+          ? () => (
+              <View className="items-start">
+                <Text className="text-[#F8FAFC] text-base font-semibold">
+                  {selectedNotes.length} selected
+                </Text>
+              </View>
+            )
+          : "Nawab Notes",
+      headerLeft:
+        selectedNotes.length > 0
+          ? () => (
+              <Pressable onPress={clearSelection} className="mr-2">
+                <Ionicons name="close" size={20} color="#F8FAFC" />
+              </Pressable>
+            )
+          : undefined,
+      headerRight:
+        selectedNotes.length > 0
+          ? () => (
+              <View className="flex-row items-center gap-3">
+                <Pressable
+                  onPress={handleSelectAll}
+                  className="rounded-full bg-[#1E293B] px-3 py-2"
+                >
+                  <Text className="text-[#F8FAFC] text-xs font-semibold">
+                    {selectedNotes.length === notes.length
+                      ? "Clear"
+                      : "Select all"}
+                  </Text>
+                </Pressable>
+
+                <Pressable
+                  onPress={handleDeleteSelected}
+                  className="rounded-full bg-[#EF4444] px-3 py-2 flex-row items-center gap-1"
+                >
+                  <Ionicons name="trash-outline" size={14} color="#F8FAFC" />
+                  <Text className="text-[#F8FAFC] text-xs font-semibold">
+                    Delete
+                  </Text>
+                </Pressable>
+              </View>
+            )
+          : undefined,
+    });
+  }, [notes.length, selectedNotes, stackNavigation]);
+
+  const loadNotes = () => {
+    const savedNotes = getNotes();
+    setNotes(savedNotes);
+  };
+
+  const handleCreateNote = () => {
+    alert("This Button is to add new notes");
+    loadNotes(); // Refresh the list
+  };
+
+  const clearSelection = () => {
+    setSelectedNotes([]);
+  };
+
+  const handleSelectAll = () => {
+    if (selectedNotes.length === notes.length) {
+      setSelectedNotes([]);
+      return;
+    }
+
+    setSelectedNotes(notes.map((note) => note.id));
+  };
+
+  const handleDeleteSelected = () => {
+    if (selectedNotes.length === 0) {
+      return;
+    }
+
+    selectedNotes.forEach((id) => deleteNote(id));
+    setSelectedNotes([]);
+    loadNotes();
+  };
+
+  const onNotePress = (id: number) => {
+    if (selectedNotes.length === 0) {
+      router.navigate({
+        pathname: `/notes/[id]`,
+        params: { id },
+      });
+    } else {
+      setSelectedNotes((prev) =>
+        prev.includes(id)
+          ? prev.filter((noteId) => noteId !== id)
+          : [...prev, id],
+      );
+    }
+  };
+
+  const onNoteLongPress = (id: number) => {
+    setSelectedNotes((prev) =>
+      prev.includes(id)
+        ? prev.filter((noteId) => noteId !== id)
+        : [...prev, id],
+    );
+  };
+
   return (
-    <ParallaxScrollView
-      headerBackgroundColor={{ light: '#A1CEDC', dark: '#1D3D47' }}
-      headerImage={
-        <Image
-          source={require('@/assets/images/partial-react-logo.png')}
-          style={styles.reactLogo}
-        />
-      }>
-      <ThemedView style={styles.titleContainer}>
-        <ThemedText type="title">Welcome!</ThemedText>
-        <HelloWave />
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 1: Try it</ThemedText>
-        <ThemedText>
-          Edit <ThemedText type="defaultSemiBold">app/(tabs)/index.tsx</ThemedText> to see changes.
-          Press{' '}
-          <ThemedText type="defaultSemiBold">
-            {Platform.select({
-              ios: 'cmd + d',
-              android: 'cmd + m',
-              web: 'F12',
-            })}
-          </ThemedText>{' '}
-          to open developer tools.
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <Link href="/modal">
-          <Link.Trigger>
-            <ThemedText type="subtitle">Step 2: Explore</ThemedText>
-          </Link.Trigger>
-          <Link.Preview />
-          <Link.Menu>
-            <Link.MenuAction title="Action" icon="cube" onPress={() => alert('Action pressed')} />
-            <Link.MenuAction
-              title="Share"
-              icon="square.and.arrow.up"
-              onPress={() => alert('Share pressed')}
-            />
-            <Link.Menu title="More" icon="ellipsis">
-              <Link.MenuAction
-                title="Delete"
-                icon="trash"
-                destructive
-                onPress={() => alert('Delete pressed')}
-              />
-            </Link.Menu>
-          </Link.Menu>
-        </Link>
+    <View className="flex-1 bg-[#0F172A]">
+      <ScrollView
+        contentContainerStyle={{ paddingBottom: 120 }}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+        }
+      >
+        {notes.map((note) => (
+          <View key={note.id} className="relative">
+            <Pressable
+              key={note.id}
+              className={` px-8 py-4 m-2 rounded-full overflow-hidden ${selectedNotes.includes(note.id) ? "bg-[#334155]/50" : "bg-[#334155]"}`}
+              android_ripple={{
+                color: "#94A3B8/50",
+                borderless: false,
+                foreground: true,
+              }}
+              onPress={() => onNotePress(note.id)}
+              onLongPress={() => onNoteLongPress(note.id)}
+            >
+              <Text
+                className="font-extrabold text-xl text-[#F8FAFC]"
+                numberOfLines={1}
+              >
+                {note.title}
+              </Text>
+              <Text className="text-[#94A3B8] font-[ShadowsIntoLight]">
+                {note.content?.slice(0, 100)}{" "}
+                {note.content && note.content.length > 100 ? "..." : ""}
+              </Text>
+            </Pressable>
 
-        <ThemedText>
-          {`Tap the Explore tab to learn more about what's included in this starter app.`}
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 3: Get a fresh start</ThemedText>
-        <ThemedText>
-          {`When you're ready, run `}
-          <ThemedText type="defaultSemiBold">npm run reset-project</ThemedText> to get a fresh{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> directory. This will move the current{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> to{' '}
-          <ThemedText type="defaultSemiBold">app-example</ThemedText>.
-        </ThemedText>
-      </ThemedView>
-    </ParallaxScrollView>
+            {selectedNotes.includes(note.id) && (
+              <View className="absolute top-3 right-3 z-10 bg-[#38BDF8] p-1 rounded-full">
+                <Ionicons name="checkmark" size={16} color="#0F172A" />
+              </View>
+            )}
+          </View>
+        ))}
+        {notes.length <= 0 && (
+          <View className="flex-1 justify-center items-center mt-20">
+            <Text className="text-[#94A3B8] font-[ShadowsIntoLight] text-lg">
+              No notes yet. Tap the + button to add one!
+            </Text>
+          </View>
+        )}
+      </ScrollView>
+
+      {/* Floating action button placed inside parent View so absolute positioning is relative to screen */}
+      <Pressable
+        className="bg-[#38BDF8] p-4 rounded-full absolute right-6 bottom-6"
+        style={{ elevation: 5 }}
+        onPress={handleCreateNote}
+      >
+        <Ionicons name="add-sharp" size={24} />
+      </Pressable>
+    </View>
   );
 }
-
-const styles = StyleSheet.create({
-  titleContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  stepContainer: {
-    gap: 8,
-    marginBottom: 8,
-  },
-  reactLogo: {
-    height: 178,
-    width: 290,
-    bottom: 0,
-    left: 0,
-    position: 'absolute',
-  },
-});
