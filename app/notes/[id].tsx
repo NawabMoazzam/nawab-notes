@@ -1,7 +1,7 @@
 import { getNoteById, updateNote } from "@/database";
 import Ionicons from "@expo/vector-icons/Ionicons";
-import { useLocalSearchParams } from "expo-router";
-import { useState } from "react";
+import { useLocalSearchParams, useNavigation } from "expo-router";
+import { useEffect, useState } from "react";
 import {
   KeyboardAvoidingView,
   Platform,
@@ -18,6 +18,30 @@ export default function Note() {
   const [isEditting, setIsEditting] = useState<boolean>(false);
   const [title, setTitle] = useState<string>(note?.title || "");
   const [content, setContent] = useState<string>(note?.content || "");
+  const navigation = useNavigation();
+
+  useEffect(() => {
+    navigation.setOptions({
+      headerRight: isEditting
+        ? () => (
+            <Pressable
+              onPress={handleSave}
+              className="mr-2 bg-[#334155] px-3 py-1 rounded-full"
+            >
+              <Ionicons name="save-sharp" size={20} color="#38BDF8" />
+            </Pressable>
+          )
+        : () => (
+            <Pressable
+              onPress={() => setIsEditting(true)}
+              className="mr-2 bg-[#334155] px-3 py-1 rounded-full"
+            >
+              <Ionicons name="pencil-sharp" size={20} color="#38BDF8" />
+            </Pressable>
+          ),
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isEditting, navigation, note?.title]);
 
   const handleSave = () => {
     if (note) {
@@ -50,6 +74,7 @@ export default function Note() {
             className="font-extrabold text-2xl text-[#F8FAFC] mb-4 p-0"
             value={title}
             onChangeText={setTitle}
+            multiline
           />
           <View className="border-t border-[#334155] my-4" />
           <TextInput
@@ -60,13 +85,6 @@ export default function Note() {
             autoFocus
           />
         </ScrollView>
-        <Pressable
-          className="bg-[#38BDF8] p-4 rounded-md absolute right-6 bottom-12"
-          style={{ elevation: 5 }}
-          onPress={handleSave}
-        >
-          <Ionicons name="save-sharp" size={24} />
-        </Pressable>
       </KeyboardAvoidingView>
     );
   }
@@ -85,13 +103,6 @@ export default function Note() {
           {note?.content}
         </Text>
       </ScrollView>
-      <Pressable
-        className="bg-[#38BDF8] p-4 rounded-md absolute right-6 bottom-12"
-        style={{ elevation: 5 }}
-        onPress={() => setIsEditting(true)}
-      >
-        <Ionicons name="pencil-sharp" size={24} />
-      </Pressable>
     </View>
   );
 }

@@ -16,10 +16,7 @@ export default function Index() {
   const [selectedNotes, setSelectedNotes] = useState<number[]>([]);
   const router = useRouter();
   const navigation = useNavigation();
-  const stackNavigation =
-    (navigation as any).getParent?.()?.getParent?.() ??
-    (navigation as any).getParent?.() ??
-    navigation;
+  const parentNavigation = (navigation as any).getParent?.();
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -36,7 +33,8 @@ export default function Index() {
   }, []);
 
   useEffect(() => {
-    stackNavigation.setOptions({
+    const targetNavigation = parentNavigation ?? navigation;
+    targetNavigation.setOptions({
       headerTitle:
         selectedNotes.length > 0
           ? () => (
@@ -83,7 +81,7 @@ export default function Index() {
             )
           : undefined,
     });
-  }, [notes.length, selectedNotes, stackNavigation]);
+  }, [navigation, notes.length, parentNavigation, selectedNotes]);
 
   const loadNotes = () => {
     const savedNotes = getNotes();
